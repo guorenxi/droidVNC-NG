@@ -180,6 +180,26 @@ adb shell am start-foreground-service \
   - Class `net.christianbeier.droidvnc_ng.MainService`
   - Target: Service
 
+##### Start a server with defaults from a Kotlin app
+
+- For apps targeting API level 30+, you'll need to specify that your app is able to see/use
+  droidVNC-NG. You do this by adding the following snippet to your AndroidManifest.xml, right under 
+  the `<manifest>` namepace:
+```xml
+<queries>
+    <package android:name="net.christianbeier.droidvnc_ng" />
+</queries>
+```
+
+- In your Kotlin code, it's then:
+```kotlin
+val intent = Intent()
+intent.setComponent(ComponentName("net.christianbeier.droidvnc_ng", "net.christianbeier.droidvnc_ng.MainService"))
+intent.setAction("net.christianbeier.droidvnc_ng.ACTION_START")
+intent.putExtra("net.christianbeier.droidvnc_ng.EXTRA_ACCESS_KEY", "<your api key from DroidVNC-NG start screen>")
+startForegroundService(intent)
+```
+
 ##### Make an outbound connection to a listening viewer from the running server
 
 For example from Java code:
@@ -243,3 +263,5 @@ VNC session, setting the interface to a slower speed might help. This workaround
 * If you see a a floating button similar to [this](https://user-images.githubusercontent.com/6049993/194750108-a808b9c3-2bc6-4cdd-ba40-b9c59476a456.jpg)
 on your screen after enabling accessibility, make sure you have the "shortcut" option in accessibility settings
 turned to off.
+
+* Due to [limitations in Android API](https://android.googlesource.com/platform/frameworks/base/+/refs/heads/android15-release/media/java/android/media/projection/MediaProjectionConfig.java#72), secondary displays are not supported.
