@@ -9,15 +9,17 @@ import android.graphics.Path
 import android.graphics.PixelFormat
 import android.hardware.display.DisplayManager
 import android.os.Build
+import android.util.Log
 import android.view.Display
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
+import androidx.annotation.UiThread
 import java.lang.IllegalArgumentException
 
 /**
  * Create an input pointer view to be used on the specified display
- * (displays other than the the default display work on API level >= 32)
+ * (displays other than the default display work on API level >= 32)
  * with the given RGB colour.
  */
 @SuppressLint("ViewConstructor")
@@ -29,8 +31,15 @@ class InputPointerView(
     val blue: Float
 ) : View(context) {
 
+    companion object {
+        private const val TAG = "InputPointerView"
+    }
+
     private val path: Path = Path()
     private val windowManager: WindowManager
+
+    // get density for later drawing in size adapted to display
+    private val density: Float = Utils.getDisplayMetrics(context, displayId).density
 
     private val paintFill: Paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
@@ -42,8 +51,6 @@ class InputPointerView(
         color = Color.BLACK
         strokeWidth = 0.8f  * density
     }
-
-    private val density: Float
 
     private val layoutParams = WindowManager.LayoutParams(
         WindowManager.LayoutParams.WRAP_CONTENT,
@@ -58,9 +65,6 @@ class InputPointerView(
     
     init {
         val displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
-
-        // get density for later drawing in size adapted to display
-        density = Utils.getDisplayMetrics(context, displayId).density
 
         windowManager = if (displayId != Display.DEFAULT_DISPLAY) {
             if (Build.VERSION.SDK_INT < 32) {
@@ -101,15 +105,21 @@ class InputPointerView(
     /**
      * Add input pointer view to display specified in constructor.
      */
+    @UiThread
     fun addView() {
-        // attach to display
-        layoutParams.gravity = Gravity.TOP or Gravity.START
-        windowManager.addView(this, layoutParams)
+        try {
+            // attach to display
+            layoutParams.gravity = Gravity.TOP or Gravity.START
+            windowManager.addView(this, layoutParams)
+        } catch (e: Exception) {
+            Log.e(TAG, "addView: $e")
+        }
     }
 
     /**
      * Remove input pointer view from display specified in constructor.
      */
+    @UiThread
     fun removeView() {
         windowManager.removeView(this)
     }
@@ -117,6 +127,7 @@ class InputPointerView(
     /**
      * Position input pointer view on display specified in constructor.
      */
+    @UiThread
     fun positionView(x: Int, y: Int) {
         layoutParams.x = x
         layoutParams.y = y

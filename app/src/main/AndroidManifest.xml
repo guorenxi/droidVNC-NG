@@ -14,11 +14,14 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
 
     <!-- TV support -->
     <uses-feature android:name="android.software.leanback"
         android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen"
+        android:required="false" />
+    <uses-feature android:name="android.hardware.wifi"
         android:required="false" />
 
     <application
@@ -30,10 +33,25 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
+        <meta-data
+            android:name="android.content.APP_RESTRICTIONS"
+            android:resource="@xml/app_restrictions" />
+
+        <!-- TV: Signal whether the app supports pointer remotes -->
+        <meta-data android:name="android.software.leanback.supports_touch" android:value="true"/>
+
         <receiver android:name=".OnBootReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".OnPackageReplacedReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
 
@@ -83,6 +101,7 @@
 
         <activity android:name=".MediaProjectionRequestActivity"
             android:theme="@style/TransparentTheme"
+            android:launchMode="singleTask"
             android:excludeFromRecents="true"
             />
 
@@ -100,6 +119,26 @@
             android:theme="@style/TransparentTheme"
             android:excludeFromRecents="true"
             />
+
+        <activity android:name=".ShareActivity"
+            android:theme="@style/TransparentTheme"
+            android:excludeFromRecents="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
+        <activity android:name=".InputKeyShortcutSetupActivity"
+            android:label="@string/main_activity_settings_key_shortcuts"
+            android:parentActivityName=".MainActivity" />
+
+        <activity
+            android:name=".WebViewActivity"
+            android:parentActivityName=".MainActivity"
+            android:configChanges="screenLayout|orientation|screenSize|keyboard|keyboardHidden|smallestScreenSize" />
 
     </application>
 

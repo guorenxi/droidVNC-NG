@@ -2,10 +2,12 @@
     <string name="app_name" translatable="false">droidVNC-NG</string>
     <string name="main_activity_title">droidVNC-NG Admin Panel</string>
     <string name="main_activity_settings">Settings</string>
+    <string name="main_activity_settings_interface">Interface</string>
+    <string name="main_activity_settings_interface_any">Any</string>
     <string name="main_activity_settings_port">Port</string>
     <string name="main_activity_settings_port_not_listening">Inbound connections disabled</string>
     <string name="main_activity_settings_password">Password</string>
-    <string name="main_activity_settings_access_key">Access Key</string>
+    <string name="main_activity_settings_access_key">Intent API Access Key</string>
     <string name="main_activity_settings_start_on_boot">Start on Boot</string>
     <string name="main_activity_settings_start_on_boot_delay">Start Delay (s)</string>
     <string name="main_activity_settings_file_transfer">File Transfer</string>
@@ -15,13 +17,21 @@
     <string name="main_activity_permissions_dashboard">Permissions Dashboard</string>
     <string name="main_activity_colon">:</string>
     <string name="main_activity_screen_capturing">Screen Capturing</string>
-    <string name="main_activity_fallback">fallback</string>
+    <string name="main_activity_fallback">fallback, tap here to upgrade</string>
     <string name="main_activity_granted">granted</string>
     <string name="main_activity_denied">denied</string>
     <string name="main_activity_file_access">File Access</string>
     <string name="main_activity_notifications">Notifications</string>
     <string name="main_activity_input">Input</string>
     <string name="main_activity_start_on_boot">Start on Boot</string>
+    <string name="main_activity_connections">Connections</string>
+    <string name="main_activity_connection_from">From %1$s</string>
+    <string name="main_activity_connection_to">To %1$s</string>
+    <string name="main_activity_connection_to_repeater">To %1$s with ID %2$s</string>
+    <string name="main_activity_connection_to_now_reconnecting">Reconnecting to %1$s</string>
+    <string name="main_activity_connection_to_repeater_now_reconnecting">Reconnecting to %1$s with ID %2$s</string>
+    <string name="main_activity_connection_terminate_title">Terminate Connection</string>
+    <string name="main_activity_connection_terminate_message">Are you sure you want to terminate this connection?</string>
     <string name="main_activity_address">The server is now reachable at</string>
     <string name="main_activity_share_link">share browser access link</string>
     <string name="main_activity_not_listening">The server is not listening for incoming connections.</string>
@@ -29,22 +39,76 @@
     <string name="main_activity_connecting_to">Connecting to %1$s</string>
     <string name="main_activity_reverse_vnc_button">Connect to a listening viewer</string>
     <string name="main_activity_reverse_vnc_hint">Host:Port</string>
-    <string name="main_activity_reverse_vnc_success">Connection to %1$s:%2$d succeeded</string>
-    <string name="main_activity_reverse_vnc_fail">Connection to %1$s:%2$d failed</string>
+    <string name="main_activity_reverse_vnc_success">Connection to %1$s succeeded</string>
+    <string name="main_activity_reverse_vnc_fail">Connection to %1$s failed</string>
     <string name="main_activity_repeater_vnc_button">Connect to a repeater</string>
     <string name="main_activity_repeater_vnc_hint">Host:Port</string>
     <string name="main_activity_repeater_vnc_hint_id">ID on Repeater</string>
-    <string name="main_activity_repeater_vnc_success">Connection to %1$s:%2$d with ID %3$s succeeded</string>
-    <string name="main_activity_repeater_vnc_fail">Connection to %1$s:%2$d with ID %3$s failed</string>
+    <string name="main_activity_repeater_vnc_success">Connection to %1$s with ID %2$s succeeded</string>
+    <string name="main_activity_repeater_vnc_fail">Connection to %1$s with ID %2$s failed</string>
     <string name="main_activity_repeater_vnc_input_missing">Host and/or ID missing</string>
     <string name="main_activity_reconnect_tries_hint">Max. reconnect tries</string>
-    <string name="main_activity_special_key_reference">From a VNC viewer, <b>Ctrl-Shift-Esc</b> triggers \'Recent Apps\' overview, <b>Home/Pos1</b> acts as Home button, <b>End</b> acts as Power button, <b>Escape</b> acts as Back button.</string>
+    <string name="main_activity_special_key_reference">From a VNC viewer, &lt;b&gt;%1$s&lt;/b&gt; triggers \'Recent Apps\' overview, &lt;b&gt;%2$s&lt;/b&gt; acts as Home button, &lt;b&gt;%3$s&lt;/b&gt; acts as Power button, &lt;b&gt;%4$s&lt;/b&gt; acts as Back button, &lt;b&gt;%5$s&lt;/b&gt;/&lt;b&gt;%6$s&lt;/b&gt; change audio volume.</string>
+    <string name="main_activity_settings_key_shortcuts">Keyboard Shortcuts</string>
+    <string name="main_activity_settings_key_shortcuts_button">Configure</string>
+    <string name="main_activity_settings_key_shortcuts_restore">Restore defaults</string>
+    <string name="main_activity_settings_key_shortcuts_restore_confirm">Reset all keyboard shortcuts to their default key combinations?</string>
+    <string name="main_activity_settings_chord_recents">Recent apps</string>
+    <string name="main_activity_settings_chord_home">Home</string>
+    <string name="main_activity_settings_chord_back">Back</string>
+    <string name="main_activity_settings_chord_power">Power dialog</string>
+    <string name="main_activity_settings_chord_volume_up">Volume up</string>
+    <string name="main_activity_settings_chord_volume_down">Volume down</string>
+    <string name="main_activity_settings_chord_rotate">Rotate</string>
+    <!-- Keyboard-shortcut labels. Modifier names (Ctrl/Alt/Shift) and the trigger-key names below
+         are physical keycap legends: English is the default and a locale overrides one only where the
+         real keycap differs (e.g. German Strg / Pos1 / Entf). "None" (key_label_none) is UI text and
+         is translated in every locale. F-keys and most legends read the same everywhere. -->
+    <string name="key_modifier_ctrl">Ctrl</string>
+    <string name="key_modifier_alt">Alt</string>
+    <string name="key_modifier_shift">Shift</string>
+    <string name="key_label_none">None</string>
+    <string name="key_label_home">Home</string>
+    <string name="key_label_end">End</string>
+    <string name="key_label_esc">Esc</string>
+    <string name="key_label_del">Del</string>
+    <string name="key_label_ins">Ins</string>
+    <string name="key_label_backspace">Backspace</string>
+    <string name="key_label_pageup">PageUp</string>
+    <string name="key_label_pagedown">PageDown</string>
+    <string name="key_label_left">Left</string>
+    <string name="key_label_right">Right</string>
+    <string name="key_label_up">Up</string>
+    <string name="key_label_down">Down</string>
+    <string name="key_label_tab">Tab</string>
+    <string name="key_label_enter">Enter</string>
+    <string name="key_label_f1">F1</string>
+    <string name="key_label_f2">F2</string>
+    <string name="key_label_f3">F3</string>
+    <string name="key_label_f4">F4</string>
+    <string name="key_label_f5">F5</string>
+    <string name="key_label_f6">F6</string>
+    <string name="key_label_f7">F7</string>
+    <string name="key_label_f8">F8</string>
+    <string name="key_label_f9">F9</string>
+    <string name="key_label_f10">F10</string>
+    <string name="key_label_f11">F11</string>
+    <string name="key_label_f12">F12</string>
+    <string name="main_activity_settings_chord_conflict">%1$s is already assigned to another action</string>
     <string name="main_activity_about">This is droidVNC-NG %1$s. Please note that more features are still being added to droidVNC-NG. You can report any issues and feature requests at https://github.com/bk138/droidVNC-NG/issues</string>
-    <string name="main_service_notification_not_listening">Not listening for incoming connections</string>
-    <plurals name="main_service_notification_listening">
-        <item quantity="one">Listening on port %1$d, %2$d client connected</item>
-        <item quantity="other">Listening on port %1$d, %2$d clients connected</item>
+    <string name="main_activity_survey_button">Provide Feedback</string>
+    <plurals name="main_service_notification_text_not_listening">
+        <item quantity="one">Not listening for incoming connections, %1$d client connected</item>
+        <item quantity="other">Not listening for incoming connections, %1$d clients connected</item>
     </plurals>
+    <plurals name="main_service_notification_text_listening">
+        <item quantity="one">Listening for incoming connections, %1$d client connected</item>
+        <item quantity="other">Listening for incoming connections, %1$d clients connected</item>
+    </plurals>
+    <string name="main_service_notification_title_fallback_screen_capture">Slow fallback screen capture mode active</string>
+    <string name="main_service_notification_action_fallback_screen_capture">Upgrade to Fast Screen Capture</string>
+    <string name="main_service_notification_title_no_screen_capture">No screen capture active</string>
+    <string name="main_service_notification_action_no_screen_capture">Activate Screen Capture</string>
     <string name="start">Start</string>
     <string name="stop">Stop</string>
     <string name="error">Error</string>
@@ -64,4 +128,12 @@
     <string name="notification_msg">To be able to show server status information and provide a means of navigating back to the admin panel more easily, it is recommended to enable notifications. Do you want to enable notifications now?</string>
     <string name="mediaprojection_request_activity_fallback_screen_capture_title">Slow fallback screen capture mode detected</string>
     <string name="mediaprojection_request_activity_fallback_screen_capture_msg">Do you want to upgrade to fast mode now?</string>
+    <string name="share_activtiy_server_not_running">Not shared text, server is not running.</string>
+    <string name="share_activtiy_no_clients_connected">Not shared text, no clients connected.</string>
+    <string name="share_activtiy_shared_successfully">Shared text to clipboards of all connected clients.</string>
+    <string name="settings_chord_description" translatable="false">Keys joined with "+", each named after its X11 keysym without the XK_ prefix and matched case-sensitively: the modifiers Control_L/Control_R, Alt_L/Alt_R, Shift_L/Shift_R, plus one trigger key. The trigger may be any X11 key name, not only the ones the in-app picker offers. Empty disables the shortcut.</string>
+    <string name="settings_chord_rotate_description" translatable="false">Keys joined with "+", each named after its X11 keysym without the XK_ prefix and matched case-sensitively: the modifiers Control_L/Control_R, Alt_L/Alt_R, Shift_L/Shift_R, plus one trigger key. The trigger may be any X11 key name, not only the ones the in-app picker offers. Empty disables the shortcut. Only effective on RK3288-based devices with a portrait-in-landscape display quirk, ignored on other hardware.</string>
+    <string name="settings_port_reverse" translatable="false">Reverse Port</string>
+    <string name="settings_port_repeater" translatable="false">Repeater Port</string>
+    <string name="survey_url" translatable="false">https://forms.gle/WtzWv4BbR6D9xyno7</string>
 </resources>

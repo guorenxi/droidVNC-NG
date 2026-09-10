@@ -22,7 +22,6 @@
 package net.christianbeier.droidvnc_ng;
 
 import android.Manifest;
-import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -30,19 +29,30 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
+import android.net.ConnectivityManager;
+import android.net.LinkProperties;
+import android.net.Network;
+import android.net.NetworkRequest;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 
+import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
+import androidx.core.os.ConfigurationCompat;
+import androidx.core.text.BidiFormatter;
+import androidx.core.text.HtmlCompat;
 import androidx.preference.PreferenceManager;
 
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
 import android.text.Editable;
 import android.text.InputType;
 import android.text.SpannableString;
 import android.text.Spanned;
+import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.text.method.LinkMovementMethod;
 import android.text.method.PasswordTransformationMethod;
@@ -53,10 +63,15 @@ import android.util.Pair;
 import android.util.TypedValue;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.Spinner;
+import android.widget.TableLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -66,9 +81,17 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.google.android.material.slider.Slider;
 import com.google.android.material.switchmaterial.SwitchMaterial;
 
+import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -89,11 +112,23 @@ public class MainActivity extends AppCompatActivity {
     private int mLastRepeaterPort;
     private String mLastRepeaterId;
     private Defaults mDefaults;
-
+    private ConnectivityManager.NetworkCallback mNetworkCallback;
+    private BroadcastReceiver mWifiApStateChangedReceiver;
+    private final Handler mClientListHandler = new Handler(Looper.getMainLooper());
+    private BroadcastReceiver mClientListBroadcastReceiver;
+    private final ConcurrentHashMap<Long, String> mNetworkInterfaces = new ConcurrentHashMap<>();
+    private Spinner mNetworkInterfaceSpinner;
+    private ArrayAdapter<String> mNetworkInterfaceAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // On Android 15 and later, calling enableEdgeToEdge ensures system bar icon colors update
+        // when the device theme changes. Because calling it on pre-Android 15 has the side effect of
+        // enabling EdgeToEdge there as well, we only use it on Android 15 and later.
+        if (Build.VERSION.SDK_INT >= 35) {
+            EdgeToEdge.enable(this);
+        }
         setContentView(R.layout.activity_main);
 
         final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
@@ -103,6 +138,7 @@ public class MainActivity extends AppCompatActivity {
         mButtonToggle.setOnClickListener(view -> {
 
             Intent intent = new Intent(MainActivity.this, MainService.class);
+            intent.putExtra(MainService.EXTRA_INTERFACE, prefs.getString(Constants.PREFS_KEY_SETTINGS_INTERFACE, ""));
             intent.putExtra(MainService.EXTRA_PORT, prefs.getInt(Constants.PREFS_KEY_SETTINGS_PORT, mDefaults.getPort()));
             intent.putExtra(MainService.EXTRA_PASSWORD, prefs.getString(Constants.PREFS_KEY_SETTINGS_PASSWORD, mDefaults.getPassword()));
             intent.putExtra(MainService.EXTRA_FILE_TRANSFER, prefs.getBoolean(Constants.PREFS_KEY_SETTINGS_FILE_TRANSFER, mDefaults.getFileTransfer()));
@@ -118,15 +154,54 @@ public class MainActivity extends AppCompatActivity {
             }
             mButtonToggle.setEnabled(false);
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(intent);
-            } else {
-                startService(intent);
-            }
+            ContextCompat.startForegroundService(MainActivity.this, intent);
 
         });
 
+        Button buttonSurvey = findViewById(R.id.survey);
+        buttonSurvey.setOnClickListener(view -> {
+            Intent intent = new Intent(this, WebViewActivity.class);
+            String url = getString(R.string.survey_url);
+            try {
+                if (!Objects.requireNonNull(ConfigurationCompat.getLocales(getResources().getConfiguration()).get(0)).getLanguage().equals("en")) {
+                    url = "https://translate.google.com/translate?sl=en&u=" + url;
+                }
+            } catch (Exception ignored) {
+            }
+            intent.putExtra(WebViewActivity.EXTRA_URL, url);
+            intent.putExtra(WebViewActivity.EXTRA_TITLE, getString(R.string.main_activity_survey_button));
+            startActivity(intent);
+        });
+
+        // The keyboard-shortcut rows would crowd the settings list, so they live in a full-screen
+        // screen opened from this button rather than inline. That screen owns its own chrome and the
+        // loading and persisting of every chord.
+        final Button keyShortcutsButton = findViewById(R.id.key_shortcut_setup_button);
+        keyShortcutsButton.setOnClickListener(view ->
+                startActivity(new Intent(this, InputKeyShortcutSetupActivity.class)));
+        // shortcuts only fire when input is enabled, so gate the button on view-only like the pointers
+        keyShortcutsButton.setEnabled(!prefs.getBoolean(Constants.PREFS_KEY_SETTINGS_VIEW_ONLY, mDefaults.getViewOnly()));
+
         mAddress = findViewById(R.id.address);
+
+        // Wire up network interface spinner
+        mNetworkInterfaceSpinner = findViewById(R.id.settings_interface);
+        mNetworkInterfaceAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, new java.util.ArrayList<>());
+        mNetworkInterfaceAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        mNetworkInterfaceSpinner.setAdapter(mNetworkInterfaceAdapter);
+        mNetworkInterfaceSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                // Position 0 = "any", pass empty string meaning bind to all
+                // Position > 0 = actual interface name
+                String selectedInterface = (position == 0) ? "" : (String) parent.getItemAtPosition(position);
+                // Store selection for when user starts the server
+                prefs.edit().putString(Constants.PREFS_KEY_SETTINGS_INTERFACE, selectedInterface).apply();
+            }
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
+        updateNetworkInterfaceSpinner();
 
         Button reverseVNC = findViewById(R.id.reverse_vnc);
         reverseVNC.setOnClickListener(view -> {
@@ -188,11 +263,7 @@ public class MainActivity extends AppCompatActivity {
                             request.putExtra(MainService.EXTRA_RECONNECT_TRIES, Integer.parseInt(reconnectTriesInputText.getText().toString()));
                         } catch (NumberFormatException ignored) {
                         }
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            startForegroundService(request);
-                        } else {
-                            startService(request);
-                        }
+                        ContextCompat.startForegroundService(MainActivity.this, request);
 
                         // show a progress dialog
                         ProgressBar progressBar = new ProgressBar(this);
@@ -200,7 +271,7 @@ public class MainActivity extends AppCompatActivity {
                         mOutgoingConnectionWaitDialog = new AlertDialog.Builder(this)
                                 .setCancelable(false)
                                 .setTitle(R.string.main_activity_reverse_vnc_button)
-                                .setMessage(getString(R.string.main_activity_connecting_to, host + ":" + port))
+                                .setMessage(getString(R.string.main_activity_connecting_to, BidiFormatter.getInstance().unicodeWrap(host + ":" + port)))
                                 .setView(progressBar)
                                 .show();
                     })
@@ -284,18 +355,14 @@ public class MainActivity extends AppCompatActivity {
                             request.putExtra(MainService.EXTRA_RECONNECT_TRIES, Integer.parseInt(reconnectTriesInputText.getText().toString()));
                         } catch (NumberFormatException ignored) {
                         }
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            startForegroundService(request);
-                        } else {
-                            startService(request);
-                        }
+                        ContextCompat.startForegroundService(MainActivity.this, request);
                         // show a progress dialog
                         ProgressBar progressBar = new ProgressBar(this);
                         progressBar.setPadding(0,0,0, (int) (30 * getResources().getDisplayMetrics().density));
                         mOutgoingConnectionWaitDialog = new AlertDialog.Builder(this)
                                 .setCancelable(false)
                                 .setTitle(R.string.main_activity_repeater_vnc_button)
-                                .setMessage(getString(R.string.main_activity_connecting_to, host + ":" + port + " - " + repeaterId))
+                                .setMessage(getString(R.string.main_activity_connecting_to, BidiFormatter.getInstance().unicodeWrap(host + ":" + port + " - " + repeaterId)))
                                 .setView(progressBar)
                                 .show();
                     })
@@ -424,6 +491,7 @@ public class MainActivity extends AppCompatActivity {
         final EditText startOnBootDelay = findViewById(R.id.settings_start_on_boot_delay);
         startOnBootDelay.setText(String.valueOf(prefs.getInt(Constants.PREFS_KEY_SETTINGS_START_ON_BOOT_DELAY, mDefaults.getStartOnBootDelay())));
         startOnBootDelay.setEnabled(prefs.getBoolean(Constants.PREFS_KEY_SETTINGS_START_ON_BOOT, mDefaults.getStartOnBoot()));
+        startOnBootDelay.setFocusable(prefs.getBoolean(Constants.PREFS_KEY_SETTINGS_START_ON_BOOT, mDefaults.getStartOnBoot()));
         startOnBootDelay.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
@@ -471,6 +539,10 @@ public class MainActivity extends AppCompatActivity {
             ed.putBoolean(Constants.PREFS_KEY_SETTINGS_START_ON_BOOT, b);
             ed.apply();
             startOnBootDelay.setEnabled(b);
+            startOnBootDelay.setFocusable(b);
+            startOnBootDelay.setFocusableInTouchMode(b);
+            // what's display in permissions display depends on the state of the just changed pref
+            updatePermissionsDisplay();
         });
 
         if(Build.VERSION.SDK_INT >= 33) {
@@ -514,12 +586,24 @@ public class MainActivity extends AppCompatActivity {
             SharedPreferences.Editor ed = prefs.edit();
             ed.putBoolean(Constants.PREFS_KEY_SETTINGS_VIEW_ONLY, b);
             ed.apply();
-            // pointers depend on this one
+            // pointers and the keyboard shortcuts depend on this one
             showPointers.setEnabled(!b);
+            keyShortcutsButton.setEnabled(!b);
         });
 
+        // Setup About text
+        SpannableString aboutText = new SpannableString(getString(R.string.main_activity_about, BuildConfig.VERSION_NAME));
+        int versionStart = getString(R.string.main_activity_about).indexOf("%1$s");
+        int versionEnd =  versionStart + BuildConfig.VERSION_NAME.length();
+        ClickableSpan versionSpan = new ClickableSpan() {
+            @Override
+            public void onClick(@NonNull View widget) {
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/bk138/droidVNC-NG/releases")));
+            }
+        };
+        aboutText.setSpan(versionSpan, versionStart, versionEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         TextView about = findViewById(R.id.about);
-        about.setText(getString(R.string.main_activity_about, BuildConfig.VERSION_NAME));
+        about.setText(aboutText);
 
         mMainServiceBroadcastReceiver = new BroadcastReceiver() {
             @Override
@@ -554,8 +638,7 @@ public class MainActivity extends AppCompatActivity {
                     if (intent.getBooleanExtra(MainService.EXTRA_REQUEST_SUCCESS, false)) {
                         Toast.makeText(MainActivity.this,
                                         getString(R.string.main_activity_reverse_vnc_success,
-                                                mLastReverseHost,
-                                                mLastReversePort),
+                                                BidiFormatter.getInstance().unicodeWrap(mLastReverseHost + ":" + mLastReversePort)),
                                         Toast.LENGTH_LONG)
                                 .show();
                         SharedPreferences.Editor ed = prefs.edit();
@@ -565,8 +648,7 @@ public class MainActivity extends AppCompatActivity {
                     } else
                         Toast.makeText(MainActivity.this,
                                         getString(R.string.main_activity_reverse_vnc_fail,
-                                                mLastReverseHost,
-                                                mLastReversePort),
+                                                BidiFormatter.getInstance().unicodeWrap(mLastReverseHost + ":" + mLastReversePort)),
                                         Toast.LENGTH_LONG)
                                 .show();
 
@@ -585,8 +667,7 @@ public class MainActivity extends AppCompatActivity {
                     if (intent.getBooleanExtra(MainService.EXTRA_REQUEST_SUCCESS, false)) {
                         Toast.makeText(MainActivity.this,
                                         getString(R.string.main_activity_repeater_vnc_success,
-                                                mLastRepeaterHost,
-                                                mLastRepeaterPort,
+                                                BidiFormatter.getInstance().unicodeWrap(mLastRepeaterHost + ":" + mLastRepeaterPort),
                                                 mLastRepeaterId),
                                         Toast.LENGTH_LONG)
                                 .show();
@@ -600,8 +681,7 @@ public class MainActivity extends AppCompatActivity {
                     else
                         Toast.makeText(MainActivity.this,
                                         getString(R.string.main_activity_repeater_vnc_fail,
-                                                mLastRepeaterHost,
-                                                mLastRepeaterPort,
+                                                BidiFormatter.getInstance().unicodeWrap(mLastRepeaterHost + ":" + mLastRepeaterPort),
                                                 mLastRepeaterId),
                                         Toast.LENGTH_LONG)
                                 .show();
@@ -627,7 +707,67 @@ public class MainActivity extends AppCompatActivity {
         // for instance
         ContextCompat.registerReceiver(this, mMainServiceBroadcastReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
 
-        // setup UI initial state
+        /*
+            Let UI update on any network interface changes.
+         */
+        // Client networks
+        mNetworkCallback = new ConnectivityManager.NetworkCallback() {
+
+            @Override
+            public void onLinkPropertiesChanged(@NonNull Network network, @NonNull LinkProperties linkProperties) {
+                Log.d(TAG, "NetworkCallback onLinkPropertiesChanged for " + network.getNetworkHandle());
+                mNetworkInterfaces.put(network.getNetworkHandle(), linkProperties.getInterfaceName() != null ? linkProperties.getInterfaceName() : "");
+                runOnUiThread(() -> {
+                    updateAddressesDisplay();
+                    updateNetworkInterfaceSpinner();
+                });
+            }
+
+            @Override
+            public void onLost(@NonNull Network network) {
+                Log.d(TAG, "NetworkCallback onLost for " + network.getNetworkHandle());
+                mNetworkInterfaces.remove(network.getNetworkHandle());
+                runOnUiThread(() -> {
+                    updateAddressesDisplay();
+                    updateNetworkInterfaceSpinner();
+                });
+            }
+        };
+        ((ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE)).registerNetworkCallback(
+                new NetworkRequest.Builder()
+                        .removeCapability(android.net.NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
+                        .build(),
+                mNetworkCallback);
+        // Access Points opened by us
+        mWifiApStateChangedReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                Log.d(TAG, "WIFI_AP_STATE_CHANGED");
+                int apState = intent.getIntExtra("wifi_state", 14);
+                String apName = intent.getStringExtra("android.net.wifi.extra.WIFI_AP_INTERFACE_NAME");
+                if (apState == 11) { // WIFI_AP_STATE_DISABLED
+                    Log.d(TAG, "WIFI_AP_STATE_CHANGED got WIFI_AP_STATE_DISABLED for " + apName);
+                    mNetworkInterfaces.remove(-1L);
+                }
+                if (apName != null && apState == 13) { // WIFI_AP_STATE_ENABLED
+                    Log.d(TAG, "WIFI_AP_STATE_CHANGED got WIFI_AP_STATE_ENABLED for " + apName);
+                    mNetworkInterfaces.put(-1L, apName);
+                }
+                runOnUiThread(() -> {
+                    updateAddressesDisplay();
+                    updateNetworkInterfaceSpinner();
+                });
+            }
+        };
+        ContextCompat.registerReceiver(
+                this,
+                mWifiApStateChangedReceiver,
+                new IntentFilter("android.net.wifi.WIFI_AP_STATE_CHANGED"),
+                ContextCompat.RECEIVER_EXPORTED);
+
+        /*
+            setup UI initial state
+         */
         if (MainService.isServerActive()) {
             Log.d(TAG, "Found server to be started");
             onServerStarted();
@@ -637,10 +777,74 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    @SuppressLint("SetTextI18n")
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        // onWindowFocusChanged() works OK on API level 26 and newer
+        if(Build.VERSION.SDK_INT >= 26) {
+            updatePermissionsDisplay();
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        Log.d(TAG, "onPause");
+        stopGettingClientList();
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
+        if (MainService.isServerActive()) {
+            startGettingClientList();
+        }
+        // onResume() is needed on API levels earlier than 26
+        if(Build.VERSION.SDK_INT < 26) {
+            updatePermissionsDisplay();
+        }
+        updateSpecialKeyReference();
+    }
+
+    /** Shows the currently configured chord for each action the shortcuts can trigger. */
+    private void updateSpecialKeyReference() {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        String reference = getString(
+                R.string.main_activity_special_key_reference,
+                chordLabel(prefs, Constants.PREFS_KEY_SETTINGS_CHORD_RECENTS, mDefaults.getChordRecents()),
+                chordLabel(prefs, Constants.PREFS_KEY_SETTINGS_CHORD_HOME, mDefaults.getChordHome()),
+                chordLabel(prefs, Constants.PREFS_KEY_SETTINGS_CHORD_POWER, mDefaults.getChordPower()),
+                chordLabel(prefs, Constants.PREFS_KEY_SETTINGS_CHORD_BACK, mDefaults.getChordBack()),
+                chordLabel(prefs, Constants.PREFS_KEY_SETTINGS_CHORD_VOLUME_UP, mDefaults.getChordVolumeUp()),
+                chordLabel(prefs, Constants.PREFS_KEY_SETTINGS_CHORD_VOLUME_DOWN, mDefaults.getChordVolumeDown()));
+        ((TextView) findViewById(R.id.special_key_reference))
+                .setText(HtmlCompat.fromHtml(reference, HtmlCompat.FROM_HTML_MODE_LEGACY));
+    }
+
+    /**
+     * The chord configured under prefsKey the way the settings screen shows it, e.g. "Ctrl+Shift+Esc".
+     * A key outside the picker's curated set keeps its X11 name. Html-encoded because the reference
+     * string it goes into carries markup that is parsed after the values are substituted.
+     */
+    private String chordLabel(SharedPreferences prefs, String prefsKey, String defaultChord) {
+        InputKeyShortcut.Chord chord = InputKeyShortcut.Chord.fromString(prefs.getString(prefsKey, defaultChord));
+        StringBuilder label = new StringBuilder();
+        if (chord.getCtrl()) {
+            label.append(getString(R.string.key_modifier_ctrl)).append('+');
+        }
+        if (chord.getAlt()) {
+            label.append(getString(R.string.key_modifier_alt)).append('+');
+        }
+        if (chord.getShift()) {
+            label.append(getString(R.string.key_modifier_shift)).append('+');
+        }
+        InputKeyShortcut.TriggerKey key = InputKeyShortcut.TriggerKey.of(chord.getKeysym());
+        String name = key != null ? getString(key.getLabelRes()) : InputKeysyms.INSTANCE.nameOf(chord.getKeysym());
+        label.append(name != null ? name : getString(R.string.key_label_none));
+        return TextUtils.htmlEncode(label.toString());
+    }
+
+    private void updatePermissionsDisplay() {
 
         /*
             Update Input permission display.
@@ -700,14 +904,28 @@ public class MainActivity extends AppCompatActivity {
         if(MediaProjectionService.isMediaProjectionEnabled()) {
             screenCapturingStatus.setText(R.string.main_activity_granted);
             screenCapturingStatus.setTextColor(getColor(R.color.granted));
+            screenCapturingStatus.setFocusable(false);
+            screenCapturingStatus.setOnClickListener(null);
         }
         if(!MediaProjectionService.isMediaProjectionEnabled()) {
             screenCapturingStatus.setText(R.string.main_activity_denied);
             screenCapturingStatus.setTextColor(getColor(R.color.denied));
+            screenCapturingStatus.setFocusable(false);
+            screenCapturingStatus.setOnClickListener(null);
         }
         if(!MediaProjectionService.isMediaProjectionEnabled() && InputService.isTakingScreenShots()) {
             screenCapturingStatus.setText(R.string.main_activity_fallback);
             screenCapturingStatus.setTextColor(getColor(R.color.fallback));
+            // if fallback is on, this means the server is running, safe to start MediaProjectionRequestActivity
+            // with EXTRA_UPGRADING_FROM_FALLBACK_SCREEN_CAPTURE which will call back into MainService
+            screenCapturingStatus.setFocusable(true);
+            screenCapturingStatus.setOnClickListener(view -> {
+                Intent mediaProjectionRequestIntent = new Intent(this, MediaProjectionRequestActivity.class);
+                mediaProjectionRequestIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                mediaProjectionRequestIntent.putExtra(MediaProjectionRequestActivity.EXTRA_UPGRADING_FROM_NO_OR_FALLBACK_SCREEN_CAPTURE, true);
+                mediaProjectionRequestIntent.putExtra(MediaProjectionRequestActivity.EXTRA_OMIT_FALLBACK_SCREEN_CAPTURE_DIALOG, true);
+                startActivity(mediaProjectionRequestIntent);
+            });
         }
 
         /*
@@ -715,23 +933,27 @@ public class MainActivity extends AppCompatActivity {
          */
         if (Build.VERSION.SDK_INT >= 30) {
             TextView startOnBootStatus = findViewById(R.id.permission_status_start_on_boot);
-            if (PreferenceManager.getDefaultSharedPreferences(this).getBoolean(Constants.PREFS_KEY_SETTINGS_START_ON_BOOT, mDefaults.getStartOnBoot())
-                    && InputService.isConnected()) {
-                startOnBootStatus.setText(R.string.main_activity_granted);
-                startOnBootStatus.setTextColor(getColor(R.color.granted));
+            startOnBootStatus.setFocusable(false);
+            startOnBootStatus.setOnClickListener(null);
+            if (PreferenceManager.getDefaultSharedPreferences(this).getBoolean(Constants.PREFS_KEY_SETTINGS_START_ON_BOOT, mDefaults.getStartOnBoot())) {
+                // start on boot wanted
+                if (InputService.isConnected()) {
+                    startOnBootStatus.setText(R.string.main_activity_granted);
+                    startOnBootStatus.setTextColor(getColor(R.color.granted));
+                } else {
+                    startOnBootStatus.setText(R.string.main_activity_denied);
+                    startOnBootStatus.setTextColor(getColor(R.color.denied));
+                    // wire this up only for denied status
+                    startOnBootStatus.setFocusable(true);
+                    startOnBootStatus.setOnClickListener(view -> InputRequestActivity.requestIfNeededAndPostResult(this,
+                            false,
+                            PreferenceManager.getDefaultSharedPreferences(this).getBoolean(Constants.PREFS_KEY_SETTINGS_START_ON_BOOT, mDefaults.getStartOnBoot()),
+                            true));
+                }
             } else {
+                // start on boot not wanted
                 startOnBootStatus.setText(R.string.main_activity_denied);
                 startOnBootStatus.setTextColor(getColor(R.color.denied));
-                // wire this up only for denied status
-                startOnBootStatus.setOnClickListener(view -> {
-                    if (PreferenceManager.getDefaultSharedPreferences(this).getBoolean(Constants.PREFS_KEY_SETTINGS_START_ON_BOOT, mDefaults.getStartOnBoot()))
-                    {
-                        Intent inputRequestIntent = new Intent(this, InputRequestActivity.class);
-                        inputRequestIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                        inputRequestIntent.putExtra(InputRequestActivity.EXTRA_DO_NOT_START_MAIN_SERVICE_ON_FINISH, true);
-                        startActivity(inputRequestIntent);
-                    }
-                });
             }
         } else {
             findViewById(R.id.permission_row_start_on_boot).setVisibility(View.GONE);
@@ -739,47 +961,98 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        Log.d(TAG, "onDestroy");
-        unregisterReceiver(mMainServiceBroadcastReceiver);
+    private void updateNetworkInterfaceSpinner() {
+        if(mIsMainServiceRunning) {
+            // don't update the disabled UI (but take care to update in onServerStopped())!
+            return;
+        }
+
+        final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        final List<String> interfaceNames = new java.util.ArrayList<>();
+        // and "any" first!
+        interfaceNames.add(getString(R.string.main_activity_settings_interface_any));
+        // then loopback. it very probably is "lo" but query for the loopback device here
+        // to be absolutely sure
+        try {
+            for (NetworkInterface iface : Collections.list(NetworkInterface.getNetworkInterfaces())) {
+                if (iface.isLoopback() && iface.getName() != null) {
+                    interfaceNames.add(iface.getName());
+                    break;
+                }
+            }
+        } catch (SocketException e) {
+            throw new RuntimeException(e);
+        }
+        // add the others
+        interfaceNames.addAll(mNetworkInterfaces.values());
+
+        Log.d(TAG, "updateInterfaceSpinner: interfaces:" + String.join(", ", interfaceNames));
+
+        runOnUiThread(() -> {
+            mNetworkInterfaceAdapter.clear();
+            mNetworkInterfaceAdapter.addAll(interfaceNames);
+
+            // Restore saved selection if still valid
+            String savedInterface = prefs.getString(Constants.PREFS_KEY_SETTINGS_INTERFACE, "");
+            int savedIndex = interfaceNames.indexOf(savedInterface);
+            if (savedIndex >= 0) {
+                mNetworkInterfaceSpinner.setSelection(savedIndex);
+            } else {
+                // Saved interface no longer exists, select "any"
+                mNetworkInterfaceSpinner.setSelection(0);
+            }
+        });
     }
 
-    private void onServerStarted() {
-        mButtonToggle.post(() -> {
-            mButtonToggle.setText(R.string.stop);
-            mButtonToggle.setEnabled(true);
-            // let focus stay on button
-            mButtonToggle.requestFocus();
-        });
+    private void updateAddressesDisplay() {
+        Log.d(TAG, "updateAddressesDisplay: " + MainService.isServerActive());
+
+        if(!MainService.isServerActive()) {
+            mAddress.setVisibility(View.GONE);
+            return;
+        }
+
+        mAddress.setVisibility(View.VISIBLE);
 
         if(MainService.getPort() >= 0) {
             HashMap<ClickableSpan, Pair<Integer,Integer>> spans = new HashMap<>();
             // uhh there must be a nice functional way for this
             ArrayList<String> hosts = MainService.getIPv4s();
+            if (hosts.isEmpty()) {
+                // IPv4 configured by port >= 0, but no IPv4 address available.
+                // We might still be listening on IPv6.
+                // Simply hide the address display UI in this case.
+                mAddress.setVisibility(View.GONE);
+                return;
+            }
             StringBuilder sb = new StringBuilder();
             sb.append(getString(R.string.main_activity_address)).append(" ");
-            for (int i = 0; i < hosts.size(); ++i) {
-                String host = hosts.get(i);
-                sb.append(host).append(":").append(MainService.getPort()).append(" (");
-                int start = sb.length();
-                sb.append(getString(R.string.main_activity_share_link));
-                ClickableSpan clickableSpan = new ClickableSpan() {
-                    @Override
-                    public void onClick(@NonNull View widget) {
-                        Intent sendIntent = new Intent();
-                        sendIntent.setAction(Intent.ACTION_SEND);
-                        sendIntent.putExtra(Intent.EXTRA_TEXT,
-                                "http://" + host + ":" + (MainService.getPort() - 100) + "/vnc.html?autoconnect=true&show_dot=true&&host=" + host + "&port=" + MainService.getPort());
-                        sendIntent.setType("text/plain");
-                        startActivity(Intent.createChooser(sendIntent, null));
-                    }
-                };
-                spans.put(clickableSpan, Pair.create(start, sb.length()));
-                sb.append(")");
-                if (i != hosts.size() - 1)
-                    sb.append(" ").append(getString(R.string.or)).append(" ");
+            if(hosts.size() == 1 && hosts.get(0).equals("127.0.0.1")) {
+                sb.append("localhost");
+            } else {
+                // don't display this as a shareable link, this will just confuse users
+                hosts.removeIf(s -> s.equals("127.0.0.1"));
+                for (int i = 0; i < hosts.size(); ++i) {
+                    String host = hosts.get(i);
+                    sb.append(host).append(":").append(MainService.getPort()).append(" (");
+                    int start = sb.length();
+                    sb.append(getString(R.string.main_activity_share_link));
+                    ClickableSpan clickableSpan = new ClickableSpan() {
+                        @Override
+                        public void onClick(@NonNull View widget) {
+                            Intent sendIntent = new Intent();
+                            sendIntent.setAction(Intent.ACTION_SEND);
+                            sendIntent.putExtra(Intent.EXTRA_TEXT,
+                                    "http://" + host + ":" + (MainService.getPort() - 100) + "/vnc.html?autoconnect=true&show_dot=true&host=" + host + "&port=" + MainService.getPort());
+                            sendIntent.setType("text/plain");
+                            startActivity(Intent.createChooser(sendIntent, null));
+                        }
+                    };
+                    spans.put(clickableSpan, Pair.create(start, sb.length()));
+                    sb.append(")");
+                    if (i != hosts.size() - 1)
+                        sb.append(" ").append(getString(R.string.or)).append(" ");
+                }
             }
             sb.append(".");
             // done with string and span creation, put it all together
@@ -792,12 +1065,33 @@ public class MainActivity extends AppCompatActivity {
         } else {
             mAddress.post(() -> mAddress.setText(R.string.main_activity_not_listening));
         }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        Log.d(TAG, "onDestroy");
+        unregisterReceiver(mMainServiceBroadcastReceiver);
+        ((ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE)).unregisterNetworkCallback(mNetworkCallback);
+        unregisterReceiver(mWifiApStateChangedReceiver);
+    }
+
+    private void onServerStarted() {
+        mButtonToggle.post(() -> {
+            mButtonToggle.setText(R.string.stop);
+            mButtonToggle.setEnabled(true);
+            // let focus stay on button
+            mButtonToggle.requestFocus();
+        });
+
+        updateAddressesDisplay();
 
         // show outbound connection interface
         findViewById(R.id.outbound_text).setVisibility(View.VISIBLE);
         findViewById(R.id.outbound_buttons).setVisibility(View.VISIBLE);
 
         // indicate that changing these settings does not have an effect when the server is running
+        findViewById(R.id.settings_interface).setEnabled(false);
         findViewById(R.id.settings_port).setEnabled(false);
         findViewById(R.id.settings_password).setEnabled(false);
         findViewById(R.id.settings_access_key).setEnabled(false);
@@ -805,6 +1099,8 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.settings_view_only).setEnabled(false);
         findViewById(R.id.settings_file_transfer).setEnabled(false);
         findViewById(R.id.settings_show_pointers).setEnabled(false);
+
+        startGettingClientList();
 
         mIsMainServiceRunning = true;
     }
@@ -816,13 +1112,16 @@ public class MainActivity extends AppCompatActivity {
             // let focus stay on button
             mButtonToggle.requestFocus();
         });
-        mAddress.post(() -> mAddress.setText(""));
+
+        updateAddressesDisplay();
+        updatePermissionsDisplay();
 
         // hide outbound connection interface
         findViewById(R.id.outbound_text).setVisibility(View.GONE);
         findViewById(R.id.outbound_buttons).setVisibility(View.GONE);
 
         // indicate that changing these settings does have an effect when the server is stopped
+        findViewById(R.id.settings_interface).setEnabled(true);
         findViewById(R.id.settings_port).setEnabled(true);
         findViewById(R.id.settings_password).setEnabled(true);
         findViewById(R.id.settings_access_key).setEnabled(true);
@@ -834,7 +1133,149 @@ public class MainActivity extends AppCompatActivity {
             findViewById(R.id.settings_show_pointers).setEnabled(true);
         }
 
+        stopGettingClientList();
+
         mIsMainServiceRunning = false;
+
+        // this will not be updated when server is running, do it here explicitly
+        updateNetworkInterfaceSpinner();
+    }
+
+    private void startGettingClientList() {
+        stopGettingClientList();
+
+        TableLayout connectionsTable = findViewById(R.id.connectionsTable);
+        connectionsTable.removeAllViews();
+        final Map<Pair<Long,String>, View> connectionsViews = new HashMap<>();
+        final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
+
+        mClientListBroadcastReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                ClientList clientList = ClientList.fromJson(intent.getStringExtra(MainService.EXTRA_CLIENTS));
+                if(clientList.getClients().isEmpty()) {
+                    // hide connections list
+                    findViewById(R.id.connectionsHeading).setVisibility(View.GONE);
+                    findViewById(R.id.connectionsTable).setVisibility(View.GONE);
+                } else {
+                    // show connections list
+                    findViewById(R.id.connectionsHeading).setVisibility(View.VISIBLE);
+                    findViewById(R.id.connectionsTable).setVisibility(View.VISIBLE);
+                }
+                // remove connections not in client list anymore
+                Iterator<Map.Entry<Pair<Long, String>, View>> connectionViewsIterator = connectionsViews.entrySet().iterator();
+                while (connectionViewsIterator.hasNext()) {
+                    Map.Entry<Pair<Long, String>, View> connectionViewsEntry = connectionViewsIterator.next();
+                    boolean found = false;
+                    for (ClientList.Client client : clientList.getClients()) {
+                        if (connectionViewsEntry.getKey().first != null && connectionViewsEntry.getKey().first.equals(client.getConnectionId())
+                                || connectionViewsEntry.getKey().second != null && connectionViewsEntry.getKey().second.equals(client.getRequestId())) {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        connectionsTable.removeView(connectionViewsEntry.getValue());
+                        connectionViewsIterator.remove();
+                    }
+                }
+
+                // add or update connections
+                for (ClientList.Client client : clientList.getClients()) {
+                    View connectionRow = null;
+                    for (Map.Entry<Pair<Long, String>, View> connectionViewsEntry : connectionsViews.entrySet()) {
+                        if (connectionViewsEntry.getKey().first != null && connectionViewsEntry.getKey().first.equals(client.getConnectionId())
+                                || connectionViewsEntry.getKey().second != null && connectionViewsEntry.getKey().second.equals(client.getRequestId())) {
+                            // cached view found, use that
+                            connectionRow = connectionViewsEntry.getValue();
+                            break;
+                        }
+                    }
+                    if (connectionRow == null) {
+                        // none found, make a new one
+                        connectionRow = getLayoutInflater().inflate(R.layout.row_connection, connectionsTable, false);
+                        connectionsTable.addView(connectionRow);
+                        connectionsViews.put(new Pair<>(client.getConnectionId(), client.getRequestId()), connectionRow);
+                    }
+
+                    TextView description = connectionRow.findViewById(R.id.description);
+                    /*
+                        Fill description according to client setup
+                     */
+                    if(client.getConnectionId() != null && client.getPort() == null) {
+                        description.setText(getString(R.string.main_activity_connection_from, client.getHost()));
+                    }
+                    if(client.getConnectionId() != null && client.getPort() != null) {
+                        description.setText(getString(R.string.main_activity_connection_to, client.getHost()));
+                    }
+                    if(client.getConnectionId() != null && client.getPort() != null && client.getRepeaterId() != null) {
+                        description.setText(getString(R.string.main_activity_connection_to_repeater, client.getHost(), client.getRepeaterId()));
+                    }
+                    if(client.getConnectionId() == null && client.getPort() != null) {
+                        description.setText(getString(R.string.main_activity_connection_to_now_reconnecting, client.getHost()));
+                    }
+                    if(client.getConnectionId() == null && client.getPort() != null && client.getRepeaterId() != null) {
+                        description.setText(getString(R.string.main_activity_connection_to_repeater_now_reconnecting, client.getHost(), client.getRepeaterId()));
+                    }
+                    /*
+                        Wire up terminate button
+                     */
+                    Intent disconnectIntent = new Intent(MainActivity.this, MainService.class);
+                    disconnectIntent.setAction(MainService.ACTION_DISCONNECT);
+                    disconnectIntent.putExtra(MainService.EXTRA_ACCESS_KEY, prefs.getString(Constants.PREFS_KEY_SETTINGS_ACCESS_KEY, mDefaults.getAccessKey()));
+                    if (client.getConnectionId() != null) {
+                        // disconnect connected client
+                        disconnectIntent.putExtra(MainService.EXTRA_CLIENT_CONNECTION_ID, client.getConnectionId());
+                    }
+                    if (client.getRequestId() != null) {
+                        // disconnect client in reconnect mode
+                        disconnectIntent.putExtra(MainService.EXTRA_CLIENT_REQUEST_ID, client.getRequestId());
+                    }
+                    ImageButton buttonTerminate = connectionRow.findViewById(R.id.terminate);
+                    buttonTerminate.setOnClickListener(view -> new AlertDialog.Builder(MainActivity.this)
+                            .setTitle(R.string.main_activity_connection_terminate_title)
+                            .setMessage(R.string.main_activity_connection_terminate_message)
+                            .setPositiveButton(R.string.yes, (dialog, which) -> ContextCompat.startForegroundService(MainActivity.this, disconnectIntent))
+                            .setNegativeButton(R.string.no, (dialog, which) -> dialog.dismiss())
+                            .show());
+                    buttonTerminate.setOnLongClickListener(view -> {
+                        ContextCompat.startForegroundService(MainActivity.this, disconnectIntent);
+                        return true;
+                    });
+                }
+            }
+        };
+        ContextCompat.registerReceiver(
+                this,
+                mClientListBroadcastReceiver,
+                new IntentFilter(MainService.ACTION_GET_CLIENTS),
+                ContextCompat.RECEIVER_NOT_EXPORTED);
+
+        mClientListHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                Intent intent = new Intent(MainActivity.this, MainService.class);
+                intent.setAction(MainService.ACTION_GET_CLIENTS);
+                intent.putExtra(MainService.EXTRA_ACCESS_KEY, prefs.getString(Constants.PREFS_KEY_SETTINGS_ACCESS_KEY, mDefaults.getAccessKey()));
+                intent.putExtra(MainService.EXTRA_RECEIVER, getPackageName());
+
+                ContextCompat.startForegroundService(MainActivity.this, intent);
+
+                mClientListHandler.postDelayed(this, 1000);
+            }
+        });
+    }
+
+    private void stopGettingClientList() {
+        mClientListHandler.removeCallbacksAndMessages(null);
+        try {
+            unregisterReceiver(mClientListBroadcastReceiver);
+        } catch (IllegalArgumentException unused) {
+            // not registered
+        }
+        // hide client list
+        findViewById(R.id.connectionsHeading).setVisibility(View.GONE);
+        findViewById(R.id.connectionsTable).setVisibility(View.GONE);
     }
 
 }

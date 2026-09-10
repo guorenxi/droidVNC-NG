@@ -1,15 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:fitsSystemWindows="true"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
     android:scrollbars="vertical">
 
-    <!-- this is focusable to start with view focus here! -->
     <LinearLayout
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:focusable="true"
-        android:focusableInTouchMode="true"
         android:orientation="vertical"
         android:padding="10dip">
 
@@ -30,10 +28,41 @@
                 android:layout_height="match_parent">
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_weight="2"
                     android:layout_column="0"
                     android:padding="10dp"
+                    android:hyphenationFrequency="full"
+                    android:text="@string/main_activity_settings_interface" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_column="1"
+                    android:padding="10dp"
+                    android:text="@string/main_activity_colon" />
+
+                <Spinner
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_column="2"
+                    android:padding="3dp"
+                    android:layout_weight="3"
+                    android:id="@+id/settings_interface"/>
+            </TableRow>
+
+            <TableRow
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="2"
+                    android:layout_column="0"
+                    android:padding="10dp"
+                    android:hyphenationFrequency="full"
                     android:text="@string/main_activity_settings_port" />
 
                 <TextView
@@ -44,11 +73,11 @@
                     android:text="@string/main_activity_colon" />
 
                 <EditText
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_column="2"
                     android:padding="10dp"
-                    android:layout_weight="1"
+                    android:layout_weight="3"
                     android:inputType="number"
                     android:id="@+id/settings_port"/>
             </TableRow>
@@ -58,10 +87,12 @@
                 android:layout_height="match_parent">
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_weight="2"
                     android:layout_column="0"
                     android:padding="10dp"
+                    android:hyphenationFrequency="full"
                     android:text="@string/main_activity_settings_password" />
 
                 <TextView
@@ -72,12 +103,13 @@
                     android:text="@string/main_activity_colon" />
 
                 <EditText
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_column="2"
                     android:padding="10dp"
-                    android:layout_weight="1"
+                    android:layout_weight="3"
                     android:inputType="textPassword"
+                    android:contentSensitivity="notSensitive"
                     android:id="@+id/settings_password"/>
 
             </TableRow>
@@ -87,10 +119,12 @@
                 android:layout_height="match_parent">
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_weight="2"
                     android:layout_column="0"
                     android:padding="10dp"
+                    android:hyphenationFrequency="full"
                     android:text="@string/main_activity_settings_access_key" />
 
                 <TextView
@@ -101,12 +135,13 @@
                     android:text="@string/main_activity_colon" />
 
                 <EditText
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_column="2"
                     android:padding="10dp"
-                    android:layout_weight="1"
+                    android:layout_weight="3"
                     android:inputType="textPassword"
+                    android:contentSensitivity="notSensitive"
                     android:id="@+id/settings_access_key"/>
 
             </TableRow>
@@ -116,10 +151,12 @@
                 android:layout_height="match_parent">
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_weight="2"
                     android:layout_column="0"
                     android:padding="10dp"
+                    android:hyphenationFrequency="full"
                     android:text="@string/main_activity_settings_start_on_boot" />
 
                 <TextView
@@ -131,10 +168,10 @@
 
                 <com.google.android.material.switchmaterial.SwitchMaterial
                     android:id="@+id/settings_start_on_boot"
-                    android:layout_width="match_parent"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_column="2"
-                    android:layout_weight="1"
+                    android:layout_weight="3"
                     android:nextFocusDown="@id/settings_start_on_boot_delay"
                     android:text="" />
 
@@ -145,10 +182,12 @@
                 android:layout_height="match_parent">
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_weight="2"
                     android:layout_column="0"
                     android:padding="10dp"
+                    android:hyphenationFrequency="full"
                     android:text="@string/main_activity_settings_start_on_boot_delay" />
 
                 <TextView
@@ -159,11 +198,11 @@
                     android:text="@string/main_activity_colon" />
 
                 <EditText
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_column="2"
                     android:padding="10dp"
-                    android:layout_weight="1"
+                    android:layout_weight="3"
                     android:inputType="number"
                     android:id="@+id/settings_start_on_boot_delay"/>
 
@@ -175,10 +214,12 @@
                 android:id="@+id/settings_row_file_transfer">
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_weight="2"
                     android:layout_column="0"
                     android:padding="10dp"
+                    android:hyphenationFrequency="full"
                     android:text="@string/main_activity_settings_file_transfer" />
 
                 <TextView
@@ -190,10 +231,10 @@
 
                 <com.google.android.material.switchmaterial.SwitchMaterial
                     android:id="@+id/settings_file_transfer"
-                    android:layout_width="match_parent"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_column="2"
-                    android:layout_weight="1"
+                    android:layout_weight="3"
                     android:nextFocusUp="@id/settings_start_on_boot_delay"
                     android:text="" />
 
@@ -205,10 +246,12 @@
                 android:layout_height="match_parent">
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_weight="2"
                     android:layout_column="0"
                     android:padding="10dp"
+                    android:hyphenationFrequency="full"
                     android:text="@string/main_activity_settings_scaling" />
 
                 <TextView
@@ -220,10 +263,10 @@
 
                 <com.google.android.material.slider.Slider
                     android:id="@+id/settings_scaling"
-                    android:layout_width="match_parent"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_column="2"
-                    android:layout_weight="1"
+                    android:layout_weight="3"
                     android:layout_gravity="center"
                     android:stepSize="5"
                     android:value="100"
@@ -238,10 +281,12 @@
                 android:layout_height="match_parent">
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_weight="2"
                     android:layout_column="0"
                     android:padding="10dp"
+                    android:hyphenationFrequency="full"
                     android:text="@string/main_activity_settings_view_only" />
 
                 <TextView
@@ -253,10 +298,10 @@
 
                 <com.google.android.material.switchmaterial.SwitchMaterial
                     android:id="@+id/settings_view_only"
-                    android:layout_width="match_parent"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_column="2"
-                    android:layout_weight="1"
+                    android:layout_weight="3"
                     android:text="" />
 
             </TableRow>
@@ -266,10 +311,12 @@
                 android:layout_height="match_parent">
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_weight="2"
                     android:layout_column="0"
                     android:padding="10dp"
+                    android:hyphenationFrequency="full"
                     android:text="@string/main_activity_settings_show_pointers" />
 
                 <TextView
@@ -281,16 +328,46 @@
 
                 <com.google.android.material.switchmaterial.SwitchMaterial
                     android:id="@+id/settings_show_pointers"
-                    android:layout_width="match_parent"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_column="2"
-                    android:layout_weight="1"
+                    android:layout_weight="3"
                     android:text="" />
 
             </TableRow>
 
-        </TableLayout>
+            <TableRow
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
 
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="2"
+                    android:layout_column="0"
+                    android:padding="10dp"
+                    android:hyphenationFrequency="full"
+                    android:text="@string/main_activity_settings_key_shortcuts" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_column="1"
+                    android:padding="10dp"
+                    android:text="@string/main_activity_colon" />
+
+                <Button
+                    android:id="@+id/key_shortcut_setup_button"
+                    style="?android:attr/buttonBarButtonStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_column="2"
+                    android:layout_weight="3"
+                    android:text="@string/main_activity_settings_key_shortcuts_button" />
+
+            </TableRow>
+
+        </TableLayout>
 
 
         <TextView
@@ -310,10 +387,12 @@
                 android:layout_height="match_parent">
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_weight="2"
                     android:layout_column="0"
                     android:padding="10dp"
+                    android:hyphenationFrequency="full"
                     android:text="@string/main_activity_screen_capturing" />
 
                 <TextView
@@ -324,11 +403,11 @@
                     android:text="@string/main_activity_colon" />
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_weight="3"
                     android:layout_column="2"
                     android:padding="10dp"
-                    android:text="@string/main_activity_fallback"
                     android:textAllCaps="true"
                     android:id="@+id/permission_status_screen_capturing"/>
             </TableRow>
@@ -338,10 +417,12 @@
                 android:layout_height="match_parent">
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_weight="2"
                     android:layout_column="0"
                     android:padding="10dp"
+                    android:hyphenationFrequency="full"
                     android:text="@string/main_activity_input" />
 
                 <TextView
@@ -352,11 +433,11 @@
                     android:text="@string/main_activity_colon" />
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_weight="3"
                     android:layout_column="2"
                     android:padding="10dp"
-                    android:text="@string/main_activity_fallback"
                     android:textAllCaps="true"
                     android:id="@+id/permission_status_input"/>
 
@@ -368,10 +449,12 @@
                 android:id="@+id/permission_row_file_access">
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_weight="2"
                     android:layout_column="0"
                     android:padding="10dp"
+                    android:hyphenationFrequency="full"
                     android:text="@string/main_activity_file_access" />
 
                 <TextView
@@ -382,11 +465,11 @@
                     android:text="@string/main_activity_colon" />
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_weight="3"
                     android:layout_column="2"
                     android:padding="10dp"
-                    android:text="@string/main_activity_fallback"
                     android:textAllCaps="true"
                     android:id="@+id/permission_status_file_access"/>
 
@@ -398,10 +481,12 @@
                 android:id="@+id/permission_row_notification">
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_weight="2"
                     android:layout_column="0"
                     android:padding="10dp"
+                    android:hyphenationFrequency="full"
                     android:text="@string/main_activity_notifications" />
 
                 <TextView
@@ -412,11 +497,11 @@
                     android:text="@string/main_activity_colon" />
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_weight="3"
                     android:layout_column="2"
                     android:padding="10dp"
-                    android:text="@string/main_activity_fallback"
                     android:textAllCaps="true"
                     android:id="@+id/permission_status_notification"/>
 
@@ -428,10 +513,12 @@
                 android:id="@+id/permission_row_start_on_boot">
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_weight="2"
                     android:layout_column="0"
                     android:padding="10dp"
+                    android:hyphenationFrequency="full"
                     android:text="@string/main_activity_start_on_boot" />
 
                 <TextView
@@ -442,11 +529,11 @@
                     android:text="@string/main_activity_colon" />
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_weight="3"
                     android:layout_column="2"
                     android:padding="10dp"
-                    android:text="@string/main_activity_fallback"
                     android:textAllCaps="true"
                     android:id="@+id/permission_status_start_on_boot"/>
 
@@ -454,13 +541,32 @@
 
         </TableLayout>
 
+
+        <TextView
+            android:id="@+id/connectionsHeading"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/main_activity_connections"
+            android:textAppearance="@style/TextAppearance.AppCompat.Large"
+            android:visibility="gone" />
+
+        <TableLayout
+            android:id="@+id/connectionsTable"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="1dp"
+            android:padding="10dp"
+            android:visibility="gone" />
+
+
         <Button
             android:id="@+id/toggle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
+            android:layout_marginTop="10dp"
             android:text="@string/start"
-            style="@style/StartStopButtonStyle"
+            style="@style/MainButtonStyle"
             />
 
         <TextView
@@ -513,9 +619,18 @@
             android:id="@+id/about"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
             android:padding="10dp"
             android:autoLink="web" />
+
+        <Button
+            android:id="@+id/survey"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="10dp"
+            android:layout_gravity="center_horizontal"
+            android:text="@string/main_activity_survey_button"
+            style="@style/MainButtonStyle"
+            />
 
     </LinearLayout>
 

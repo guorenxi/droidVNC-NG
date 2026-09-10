@@ -1,11 +1,12 @@
 <resources>
-    <string name="app_name" translatable="false">droidVNC-NG</string>
     <string name="main_activity_title">droidVNC-NG管理パネル</string>
     <string name="main_activity_settings">設定</string>
+    <string name="main_activity_settings_interface">ネットワークインターフェース</string>
+    <string name="main_activity_settings_interface_any">すべて</string>
     <string name="main_activity_settings_port">ポート</string>
     <string name="main_activity_settings_port_not_listening">インバウンド接続は無効です</string>
     <string name="main_activity_settings_password">パスワード</string>
-    <string name="main_activity_settings_access_key">アクセスキー</string>
+    <string name="main_activity_settings_access_key">インテントAPIアクセスキー</string>
     <string name="main_activity_settings_start_on_boot">起動時に自動実行</string>
     <string name="main_activity_settings_start_on_boot_delay">自動実行の遅延時間(秒)</string>
     <string name="main_activity_settings_file_transfer">ファイル転送</string>
@@ -15,13 +16,21 @@
     <string name="main_activity_permissions_dashboard">権限ダッシュボード</string>
     <string name="main_activity_colon">:</string>
     <string name="main_activity_screen_capturing">スクリーンキャプチャ</string>
-    <string name="main_activity_fallback">フォールバック</string>
+    <string name="main_activity_fallback">フォールバック、アップグレードするにはここをタップしてください</string>
     <string name="main_activity_granted">許可</string>
     <string name="main_activity_denied">拒否</string>
     <string name="main_activity_file_access">ファイルアクセス</string>
     <string name="main_activity_notifications">通知</string>
     <string name="main_activity_input">入力</string>
     <string name="main_activity_start_on_boot">起動時に自動実行</string>
+    <string name="main_activity_connections">接続</string>
+    <string name="main_activity_connection_from">%1$s から</string>
+    <string name="main_activity_connection_to">%1$s へ</string>
+    <string name="main_activity_connection_to_repeater">ID %2$s の %1$s へ</string>
+    <string name="main_activity_connection_to_now_reconnecting">%1$s に再接続中</string>
+    <string name="main_activity_connection_to_repeater_now_reconnecting">ID %2$s の %1$s に再接続中</string>
+    <string name="main_activity_connection_terminate_title">接続を終了</string>
+    <string name="main_activity_connection_terminate_message">この接続を終了しますか？</string>
     <string name="main_activity_address">サーバーには次のアドレスから接続可能です:</string>
     <string name="main_activity_share_link">ブラウザアクセスリンクを共有する</string>
     <string name="main_activity_not_listening">サーバーは着信接続をリッスンしていません</string>
@@ -29,22 +38,42 @@
     <string name="main_activity_connecting_to">%1$s に接続中</string>
     <string name="main_activity_reverse_vnc_button">クライアントに接続</string>
     <string name="main_activity_reverse_vnc_hint">ホスト名:ポート</string>
-    <string name="main_activity_reverse_vnc_success">%1$s:%2$d への接続に成功しました</string>
-    <string name="main_activity_reverse_vnc_fail">%1$s:%2$d への接続に失敗しました</string>
+    <string name="main_activity_reverse_vnc_success">%1$s への接続に成功しました</string>
+    <string name="main_activity_reverse_vnc_fail">%1$s への接続に失敗しました</string>
     <string name="main_activity_repeater_vnc_button">リピータに接続</string>
     <string name="main_activity_repeater_vnc_hint">ホスト名:ポート</string>
     <string name="main_activity_repeater_vnc_hint_id">リピータのIDを</string>
-    <string name="main_activity_repeater_vnc_success">%1$s:%2$d (ID %3$s) への接続に成功しました</string>
-    <string name="main_activity_repeater_vnc_fail">%1$s:%2$d (ID %3$s) への接続に失敗しました</string>
+    <string name="main_activity_repeater_vnc_success">%1$s (ID %2$s) への接続に成功しました</string>
+    <string name="main_activity_repeater_vnc_fail">%1$s (ID %2$s) への接続に失敗しました</string>
     <string name="main_activity_repeater_vnc_input_missing">ホスト名またはIDが入力されていません</string>
     <string name="main_activity_reconnect_tries_hint">最大の接続リトライ数</string>
-    <string name="main_activity_special_key_reference">VNCビューワから<b>Ctrl-Shift-Esc</b>を押下すると、「アプリ履歴」画面が呼び出されます。 <b>Home/Pos1</b>はホームボタンとして機能します。 <b>End</b>は電源ボタンとして機能します。 <b>Escape</b>は戻るボタンとして機能します</string>
+    <string name="main_activity_special_key_reference">VNC ビューアから、&lt;b&gt;%1$s&lt;/b&gt; で \'最近使ったアプリ\' の概要が起動し、&lt;b&gt;%2$s&lt;/b&gt; でホーム ボタン、&lt;b&gt;%3$s&lt;/b&gt; で電源ボタン、&lt;b&gt;%4$s&lt;/b&gt; で戻るボタン、&lt;b&gt;%5$s&lt;/b&gt;/&lt;b&gt;%6$s&lt;/b&gt; で音量が変更されます。</string>
+    <string name="main_activity_settings_key_shortcuts">キーボードショートカット</string>
+    <string name="main_activity_settings_key_shortcuts_button">設定</string>
+    <string name="main_activity_settings_key_shortcuts_restore">デフォルトに戻す</string>
+    <string name="main_activity_settings_key_shortcuts_restore_confirm">すべてのキーボードショートカットをデフォルトのキーの組み合わせにリセットしますか？</string>
+    <string name="main_activity_settings_chord_recents">最近使ったアプリ</string>
+    <string name="main_activity_settings_chord_home">ホーム</string>
+    <string name="main_activity_settings_chord_back">戻る</string>
+    <string name="main_activity_settings_chord_power">電源メニュー</string>
+    <string name="main_activity_settings_chord_volume_up">音量＋</string>
+    <string name="main_activity_settings_chord_volume_down">音量−</string>
+    <string name="main_activity_settings_chord_rotate">画面回転</string>
+    <string name="main_activity_settings_chord_conflict">%1$s は既に別のアクションに割り当てられています</string>
     <string name="main_activity_about">このアプリはdroidVNC-NG %1$sです。 droidVNC-NGにはさらに多くの機能が追加されています。問題や機能要望は https://github.com/bk138/droidVNC-NG/issues で報告できます。</string>
-    <string name="main_service_notification_not_listening">着信接続をリッスンしていません</string>
-    <plurals name="main_service_notification_listening">
-        <item quantity="one">ポート%1$dでリッスン中 %2$dつのクライアントが接続されています</item>
-        <item quantity="other">ポート%1$dでリッスン中 %2$dつのクライアントが接続されています</item>
+    <string name="main_activity_survey_button">フィードバックを提供する</string>
+    <plurals name="main_service_notification_text_not_listening">
+        <item quantity="one">サーバーは受信接続を待機していません。%1$d 台のクライアントが接続されています</item>
+        <item quantity="other">サーバーは受信接続を待機していません。%1$d 台のクライアントが接続されています</item>
     </plurals>
+    <plurals name="main_service_notification_text_listening">
+        <item quantity="one">サーバーは受信接続を待機しています。%1$d 台のクライアントが接続されています</item>
+        <item quantity="other">サーバーは受信接続を待機しています。%1$d 台のクライアントが接続されています</item>
+    </plurals>
+    <string name="main_service_notification_title_fallback_screen_capture">低速フォールバック画面キャプチャモードが有効です</string>
+    <string name="main_service_notification_action_fallback_screen_capture">高速画面キャプチャにアップグレードします</string>
+    <string name="main_service_notification_title_no_screen_capture">画面キャプチャが有効ではありません</string>
+    <string name="main_service_notification_action_no_screen_capture">画面キャプチャを有効にします</string>
     <string name="start">開始</string>
     <string name="stop">停止</string>
     <string name="error">エラー</string>
@@ -64,4 +93,13 @@
     <string name="notification_msg">サーバーのステータス情報を表示し、より簡単にこの管理パネルを表示するために、通知を有効にすることを推奨します。通知を有効にしますか？</string>
     <string name="mediaprojection_request_activity_fallback_screen_capture_title">低速なフォールバックキャプチャモードが検出されました</string>
     <string name="mediaprojection_request_activity_fallback_screen_capture_msg">高速なモードに切り替えますか？</string>
+    <string name="share_activtiy_server_not_running">テキストは共有されていません。サーバーは実行されていません。</string>
+    <string name="share_activtiy_no_clients_connected">テキストは共有されていません。クライアントが接続されていません。</string>
+    <string name="share_activtiy_shared_successfully">接続されているすべてのクライアントのクリップボードにテキストを共有しました。</string>
+    <!-- Keyboard-shortcut labels: "None" plus keycap legends that differ from English (see values/strings.xml) -->
+    <string name="key_label_none">なし</string>
+    <string name="key_label_left">左</string>
+    <string name="key_label_right">右</string>
+    <string name="key_label_up">上</string>
+    <string name="key_label_down">下</string>
 </resources>

@@ -1,3 +1,7 @@
+# Language
+* Kotlin is preferred over Java for entirely new code.
+* Java use is OK when extending existing Java code.
+
 # Code Style
 
 * Complex and non-obvious functionality must be properly commented.

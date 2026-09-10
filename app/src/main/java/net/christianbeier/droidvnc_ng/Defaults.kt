@@ -22,7 +22,7 @@
 package net.christianbeier.droidvnc_ng
 
 import android.content.Context
-import android.content.SharedPreferences
+import android.content.RestrictionsManager
 import android.util.Log
 import android.view.Display
 import androidx.preference.PreferenceManager
@@ -30,15 +30,19 @@ import kotlinx.serialization.*
 import kotlinx.serialization.json.*
 import java.io.File
 import java.util.UUID
+import androidx.core.content.edit
 
 
-@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 class Defaults {
     companion object {
         private const val TAG = "Defaults"
         private const val PREFS_KEY_DEFAULTS_ACCESS_KEY = "defaults_access_key"
     }
+
+    @EncodeDefault
+    var interfaceName = ""
+        private set
 
     @EncodeDefault
     var port = 5900
@@ -84,6 +88,34 @@ class Defaults {
     var startOnBootDelay = 0
         private set
 
+    @EncodeDefault
+    var chordRecents = "Control_L+Shift_L+Escape"
+        private set
+
+    @EncodeDefault
+    var chordHome = "Home"
+        private set
+
+    @EncodeDefault
+    var chordBack = "Escape"
+        private set
+
+    @EncodeDefault
+    var chordPower = "End"
+        private set
+
+    @EncodeDefault
+    var chordVolumeUp = "Control_L+Alt_L+Page_Up"
+        private set
+
+    @EncodeDefault
+    var chordVolumeDown = "Control_L+Alt_L+Page_Down"
+        private set
+
+    @EncodeDefault
+    var chordRotate = "Control_L+Alt_L+Delete"
+        private set
+
     /*
        NB if adding fields here, don't forget to add their copying in the constructor as well!
      */
@@ -95,12 +127,12 @@ class Defaults {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         val defaultAccessKey = prefs.getString(PREFS_KEY_DEFAULTS_ACCESS_KEY, null)
         if (defaultAccessKey == null) {
-            val ed: SharedPreferences.Editor = prefs.edit()
-            ed.putString(
-                PREFS_KEY_DEFAULTS_ACCESS_KEY,
-                UUID.randomUUID().toString().replace("-".toRegex(), "")
-            )
-            ed.apply()
+            prefs.edit {
+                putString(
+                    PREFS_KEY_DEFAULTS_ACCESS_KEY,
+                    UUID.randomUUID().toString().replace("-".toRegex(), "")
+                )
+            }
         }
         this.accessKey = prefs.getString(PREFS_KEY_DEFAULTS_ACCESS_KEY, null)!!
 
@@ -110,12 +142,54 @@ class Defaults {
         this.scaling = 1.0f / Utils.getDisplayMetrics(context, Display.DEFAULT_DISPLAY).density.coerceAtLeast(1.0f)
 
         /*
+            Try read defaults from app restrictions
+         */
+        val appConfig = (context.getSystemService(Context.RESTRICTIONS_SERVICE) as RestrictionsManager).applicationRestrictions
+        if (appConfig != null && appConfig.size() > 0) {
+            Log.i(TAG, "Loading defaults from app restrictions")
+            this.interfaceName = appConfig.getString("interfaceName", this.interfaceName) ?: this.interfaceName
+            this.port = appConfig.getInt("port", this.port)
+            this.portReverse = appConfig.getInt("portReverse", this.portReverse)
+            this.portRepeater = appConfig.getInt("portRepeater", this.portRepeater)
+            this.fileTransfer = appConfig.getBoolean("fileTransfer", this.fileTransfer)
+            this.viewOnly = appConfig.getBoolean("viewOnly", this.viewOnly)
+            this.showPointers = appConfig.getBoolean("showPointers", this.showPointers)
+            this.password = appConfig.getString("password", this.password) ?: this.password
+            this.startOnBoot = appConfig.getBoolean("startOnBoot", this.startOnBoot)
+            this.startOnBootDelay = appConfig.getInt("startOnBootDelay", this.startOnBootDelay)
+            this.chordRecents = appConfig.getString("chordRecents", this.chordRecents) ?: this.chordRecents
+            this.chordHome = appConfig.getString("chordHome", this.chordHome) ?: this.chordHome
+            this.chordBack = appConfig.getString("chordBack", this.chordBack) ?: this.chordBack
+            this.chordPower = appConfig.getString("chordPower", this.chordPower) ?: this.chordPower
+            this.chordVolumeUp = appConfig.getString("chordVolumeUp", this.chordVolumeUp) ?: this.chordVolumeUp
+            this.chordVolumeDown = appConfig.getString("chordVolumeDown", this.chordVolumeDown) ?: this.chordVolumeDown
+            this.chordRotate = appConfig.getString("chordRotate", this.chordRotate) ?: this.chordRotate
+
+            val scalingStr = appConfig.getString("scaling", "0.0")
+            try {
+                val scaling = scalingStr.toFloat()
+                if (scaling > 0.0f)
+                    this.scaling = scaling
+            } catch (_: NumberFormatException) {
+                Log.w(TAG, "Invalid scaling value in app restrictions: $scalingStr")
+            }
+
+            val accessKey = appConfig.getString("accessKey", "")
+            if (accessKey != null && accessKey.isNotEmpty())
+                this.accessKey = accessKey
+
+            return
+        }
+
+        /*
             read provided defaults
          */
         val jsonFile = File(context.getExternalFilesDir(null), "defaults.json")
         try {
             val jsonString = jsonFile.readText()
             val readDefault = Json.decodeFromString<Defaults>(jsonString)
+            Log.i(TAG, "Loading defaults from json file")
+            this.interfaceName = readDefault.interfaceName
             this.port = readDefault.port
             this.portReverse = readDefault.portReverse
             this.portRepeater = readDefault.portRepeater
@@ -132,6 +206,13 @@ class Defaults {
                 this.accessKey = readDefault.accessKey
             this.startOnBoot = readDefault.startOnBoot
             this.startOnBootDelay = readDefault.startOnBootDelay
+            this.chordRecents = readDefault.chordRecents
+            this.chordHome = readDefault.chordHome
+            this.chordBack = readDefault.chordBack
+            this.chordPower = readDefault.chordPower
+            this.chordVolumeUp = readDefault.chordVolumeUp
+            this.chordVolumeDown = readDefault.chordVolumeDown
+            this.chordRotate = readDefault.chordRotate
             // add here!
         } catch (e: Exception) {
             Log.w(TAG, "${e.message}")

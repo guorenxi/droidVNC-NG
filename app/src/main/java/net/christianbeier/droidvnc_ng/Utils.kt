@@ -5,19 +5,28 @@ import android.hardware.display.DisplayManager
 import android.os.Build
 import android.provider.Settings
 import android.util.DisplayMetrics
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
+import java.util.concurrent.locks.Lock
+import kotlin.concurrent.withLock
 
 object Utils {
 
     @JvmStatic
     fun getProp(prop: String) : String {
-        val process = ProcessBuilder().command("/system/bin/getprop", prop).start()
-        return BufferedReader(InputStreamReader(process.inputStream)).readLine()
+        try {
+            val process = ProcessBuilder().command("/system/bin/getprop", prop).start()
+            return BufferedReader(InputStreamReader(process.inputStream)).readLine()
+        } catch (_: Exception) {
+            return ""
+        }
     }
 
     @JvmStatic
@@ -28,20 +37,30 @@ object Utils {
         return displayMetrics
     }
 
+    /**
+     * Whether this device is the quirky hardware the portrait-in-landscape workaround exists for.
+     * The workaround itself (see MediaProjectionService.togglePortraitInLandscapeWorkaround()) is
+     * hardware-independent, but it only ever produces a usable picture on these devices, so it is
+     * both auto-detected and offered as a shortcut only here.
+     */
     @JvmStatic
-    fun getDeviceName(ctx: Context): String? {
-        // get device name
+    fun hasPortraitInLandscapeQuirk(): Boolean = Build.FINGERPRINT.contains("rk3288")
+
+    @JvmStatic
+    fun getDeviceName(ctx: Context): String {
         return try {
             // This is what we had until targetSDK 33.
             Settings.Secure.getString(ctx.contentResolver, "bluetooth_name")
-        } catch (ignored: SecurityException) {
-            // throws on devices with API level 33, so use fallback
+        } catch (_: SecurityException) {
+            // throws on devices with API level 33, so trigger use of fallback
+            null
+        } ?: run {
             if (Build.VERSION.SDK_INT > 25) {
                 Settings.Global.getString(ctx.contentResolver, Settings.Global.DEVICE_NAME)
             } else {
-                ctx.getString(R.string.app_name)
+                null
             }
-        }
+        } ?: ctx.getString(R.string.app_name) // if any of these is null, return app name
     }
 
     @JvmStatic
@@ -90,6 +109,43 @@ object Utils {
     fun deleteRecursively(directory: String) {
         val directory = File(directory)
         directory.deleteRecursively()
+    }
+
+    /**
+     * Rename a file. Does not overwrite!
+     */
+    @JvmStatic
+    fun rename(src: String, dst: String): Boolean {
+        return File(src).renameTo(File(dst))
+    }
+
+    @JvmStatic
+    fun runOnIoThread(runnable: Runnable) {
+        CoroutineScope(Dispatchers.IO).launch {
+            runnable.run()
+        }
+    }
+
+    /**
+     * Run action under lock with returning a value.
+     * Kotlin's kotlin.concurrent.withLock for Java.
+     */
+    @JvmStatic
+    fun <T> withLock(lock: Lock, action: () -> T): T {
+        return lock.withLock(action)
+    }
+
+    /**
+     * Run action under lock without returning a value.
+     */
+    @JvmStatic
+    fun withLock(lock: Lock, action: Runnable) {
+        lock.lock()
+        try {
+            action.run()
+        } finally {
+            lock.unlock()
+        }
     }
 
 }
